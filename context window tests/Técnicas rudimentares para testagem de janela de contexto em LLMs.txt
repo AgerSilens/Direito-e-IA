@@ -1,0 +1,60 @@
+Técnicas rudimentares para testagem de janelas de contexto em LLMs (funcionando em 22/7/2025)
+
+Conceitos-Chave Primeiro
+Janela de Contexto: É a memória de curto prazo do modelo. Ela inclui tanto o que você envia (seu prompt) quanto o que ele gera (a resposta). Tudo dentro dessa janela é considerado pelo modelo para gerar a próxima palavra.
+Tokens, não Palavras: A janela de contexto é medida em tokens, não em palavras ou caracteres. Um token pode ser uma palavra, parte de uma palavra, um número ou um sinal de pontuação.
+Regra geral (para o português): 100 tokens ≈ 70-80 palavras. Para ter precisão, você precisa de um "tokenizer".
+A Estratégia: "Agulha no Palheiro"
+A ideia é simples:
+Criar um "palheiro": um texto longo e irrelevante.
+Esconder uma "agulha": uma informação única e específica, no meio do palheiro.
+Perguntar ao LLM sobre a "agulha".
+Se o LLM encontrar a agulha, significa que ela está dentro da janela de contexto. Se ele não encontrar, o texto foi longo demais e a agulha "caiu fora" da memória do modelo.
+Passo a Passo para Testar a Janela de Contexto
+Ferramentas Necessárias:
+Um contador de tokens: Essencial para a precisão. Como você não sabe o modelo exato, pode usar um tokenizer genérico como o do OpenAI (Tiktoken), que é um bom padrão de mercado.
+Ferramenta online fácil: OpenAI Tokenizer
+Um gerador de texto ("palheiro"): Pode ser um gerador de "Lorem Ipsum" ou, melhor ainda, textos de domínio público (como livros do Projeto Gutenberg) para simular um cenário mais realista.
+Um editor de texto simples (Bloco de Notas, VS Code, etc.).
+Método 1: Aumento Incremental (Mais simples)
+Crie a sua "Agulha":
+Invente uma frase ou fato que seja completamente único e que não exista na internet. Isso é crucial para garantir que o modelo não está usando seu conhecimento prévio.
+Exemplo de agulha: "O código secreto para a montanha de cristal é Abacaxi-Verde-42."
+Comece com um "Palheiro" Pequeno:
+Gere um texto de, digamos, 1000 palavras (que serão aproximadamente 1300-1400 tokens).
+Use o tokenizer para verificar a contagem exata de tokens. Vamos chamar essa contagem de T.
+Monte o Prompt de Teste:
+Coloque a sua "agulha" bem no meio do palheiro. Isso é importante porque alguns modelos têm dificuldade em lembrar informações no meio de contextos longos (problema conhecido como "lost in the middle").
+Seu prompt final será:
+Generated code
+[PRIMEIRA METADE DO PALHEIRO]
+O código secreto para a montanha de cristal é Abacaxi-Verde-42.
+[SEGUNDA METADE DO PALHEIRO]
+
+Com base exclusivamente no texto fornecido acima, qual é o código secreto para a montanha de cristal?
+Use code with caution.
+Execute e Analise:
+Se o LLM responder corretamente ("Abacaxi-Verde-42"), a janela de contexto é maior que T tokens.
+Se o LLM responder que não sabe, que a informação não está no texto, ou inventar uma resposta (alucinar), a janela de contexto é menor que T tokens.
+Aumente o Palheiro e Repita:
+Se o teste passou, aumente o tamanho do palheiro. Adicione mais 500 palavras (cerca de 600-700 tokens) e repita o processo.
+Continue aumentando o texto até que o LLM falhe. O último tamanho de texto em que ele acertou é a sua melhor estimativa para o limite da janela de contexto.
+Método 2: Busca Binária (Mais rápido e eficiente)
+Se você suspeita que a janela pode ser muito grande (ex: 8k, 16k, 32k tokens), o método incremental demorará muito. A busca binária é mais inteligente.
+Defina Limites Iniciais:
+Limite Inferior (min): Um valor que você tem certeza que funciona (ex: 1000 tokens).
+Limite Superior (max): Um valor que você acha que provavelmente vai falhar (ex: 32000 tokens).
+Teste o Ponto Médio:
+Calcule o ponto médio: meio = (min + max) / 2. Por exemplo, (1000 + 32000) / 2 = 16500 tokens.
+Crie um palheiro com 16500 tokens, insira a agulha no meio e faça a pergunta.
+Ajuste os Limites:
+Se o LLM acertar: Ótimo! Isso significa que o limite real é pelo menos de 16500 tokens. Você atualiza seu limite inferior: min = meio. Seus novos limites são [16500, 32000].
+Se o LLM falhar: A janela é menor que 16500 tokens. Você atualiza seu limite superior: max = meio. Seus novos limites são [1000, 16500].
+Repita o Processo:
+Calcule o novo ponto médio dos seus novos limites e teste novamente.
+Continue repetindo até que a diferença entre max e min seja pequena o suficiente para a sua necessidade (ex: menos de 500 tokens de diferença). O valor de min será uma excelente aproximação do tamanho da janela de contexto.
+Dicas Importantes para a Precisão
+Posição da Agulha: Além do meio, faça um teste final com a agulha bem no início do texto e outro com ela bem no final. Alguns modelos têm vieses posicionais.
+A Pergunta: Seja muito direto e instrua o modelo a usar apenas o texto fornecido. Isso reduz a chance de alucinação.
+Custo: Lembre-se que cada teste consome tokens da sua plataforma, o que pode ter custos associados. A busca binária ajuda a minimizar isso.
+Janela Total (Prompt + Resposta): A janela de contexto inclui a resposta do modelo. Se você espera respostas longas, use um palheiro um pouco menor, pois a resposta também consumirá tokens da janela. Para este teste, como a resposta é curta ("Abacaxi-Verde-42"), o impacto é mínimo.
